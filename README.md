@@ -1,2 +1,2 @@
 # Tensorflow-Catalogue
-Library Tensorflow Capabilities 
+Personal Library of Tensorflow Capabilities with examples and how to use them.
