@@ -1,0 +1,197 @@
+
+import tensorflow as tf
+from tensorflow.keras.models import  Sequential, Model, Input, Dense, Flatten, Conv2D, MaxPooling2D, Concatenate
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
+import numpy as np
+import os
+import pandas as pd
+from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Download the Cats Dog Dataset and load data
+
+images_train = np.load('data/images_train.npy') / 255.
+images_valid = np.load('data/images_valid.npy') / 255.
+images_test = np.load('data/images_test.npy') / 255.
+
+labels_train = np.load('data/labels_train.npy')
+labels_valid = np.load('data/labels_valid.npy')
+labels_test = np.load('data/labels_test.npy')
+
+def get_benchmark_model(input_shape):
+    """
+    This function should build and compile a CNN model according to the above specification,
+    using the functional API. The function takes input_shape as an argument, which should be
+    used to specify the shape in the Input layer.
+    Your function should return the model.
+    """
+    inputs = Input(input_shape)
+    h = Conv2D(32, (3,3), activation='relu',padding="same")(inputs)
+    h = Conv2D(32, (3,3), activation='relu',padding="same")(h)
+    h = MaxPooling2D(pool_size=(2, 2))(h)
+    h = Conv2D(64, (3,3), activation='relu',padding="same")(h)
+    h = Conv2D(64, (3,3), activation='relu',padding="same")(h)
+    h = MaxPooling2D(pool_size=(2, 2))(h)
+    h = Conv2D(128, (3,3), activation='relu',padding="same")(h)
+    h = Conv2D(128, (3,3), activation='relu',padding="same")(h)
+    h = MaxPooling2D(pool_size=(2, 2))(h)
+    h = Flatten()(h)
+    h = Dense(128, activation='relu')(h)
+    outputs = Dense(1, activation='sigmoid')(h)
+    
+    model = Model(inputs=inputs, outputs=outputs)
+    
+    opt = tf.keras.optimizers.RMSprop(learning_rate=0.001)
+    model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['binary_accuracy'])
+
+    return model
+    
+# I want to save the training weights
+def get_checkpoint_best_only():
+    checkpoint_path = 'checkpoints_best_only/checkpoint'
+    checkpoint = ModelCheckpoint(filepath = checkpoint_path,
+                                 save_weights_only=True,
+                                 frequency='epoch',
+                                 monitor='val_accuracy',
+                                 save_best_only=True,
+                                 verbose=1)
+    return checkpoint
+    
+early_stopping = tf.keras.callbacks.EarlyStopping(patience=2)
+checkpoint_best_only = get_checkpoint_best_only()
+
+callbacks = [checkpoint_best_only, early_stopping]
+
+history_benchmark = benchmark_model.fit(images_train, labels_train, epochs=10, batch_size=32,
+                                        validation_data=(images_valid, labels_valid), 
+                                        callbacks=callbacks)
+                                        
+# Run this cell to plot accuracy vs epoch and loss vs epoch
+
+plt.figure(figsize=(15,5))
+plt.subplot(121)
+try:
+    plt.plot(history_benchmark.history['binary_accuracy'])
+    plt.plot(history_benchmark.history['val_binary_accuracy'])
+except KeyError:
+    plt.plot(history_benchmark.history['acc'])
+    plt.plot(history_benchmark.history['val_acc'])
+plt.title('Accuracy vs. epochs')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend(['Training', 'Validation'], loc='lower right')
+
+plt.subplot(122)
+plt.plot(history_benchmark.history['loss'])
+plt.plot(history_benchmark.history['val_loss'])
+plt.title('Loss vs. epochs')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(['Training', 'Validation'], loc='upper right')
+plt.show() 
+
+benchmark_test_loss, benchmark_test_acc = benchmark_model.evaluate(images_test, labels_test, verbose=0)
+print("Test loss: {}".format(benchmark_test_loss))
+print("Test accuracy: {}".format(benchmark_test_acc))
+
+# Download the pre-trained model and add path
+
+def load_pretrained_MobileNetV2(path):
+
+    from tensorflow.keras.models import load_model
+    model = load_model(path)
+    
+    return model
+    
+base_model = load_pretrained_MobileNetV2('models/MobileNetV2.h5')
+base_model.summary()
+
+#Remove final layer of pre-trained model
+def remove_head(pretrained_model):
+
+    model_input = pretrained_model.input
+    model_output = pretrained_model.get_layer('global_average_pooling2d_6').output
+    
+    model_interim = Model(inputs=model_input, outputs=model_output)
+    
+    return model_interim
+    
+    
+feature_extractor = remove_head(base_model)
+feature_extractor.summary()
+
+# Add pre-trained with extra layers
+def add_new_classifier_head(feature_extractor_model):
+
+    model = Sequential([
+        feature_extractor_model,
+        Dense(32, activation='relu'),
+        tf.keras.layers.Dropout(0.5),
+        Dense(1, activation='sigmoid')
+    ])
+    
+    return model
+
+# Freeze the weights on pre-trained layers
+def freeze_pretrained_weights(model):
+    model.get_layer('model').trainable = False
+    
+    opt = tf.keras.optimizers.RMSprop(learning_rate=0.001)
+    model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['binary_accuracy'])
+    return model
+    
+earlystopping = tf.keras.callbacks.EarlyStopping(patience=4)
+history_frozen_new_model = frozen_new_model.fit(images_train, labels_train, epochs=10, batch_size=32,
+                                                validation_data=(images_valid, labels_valid), 
+                                                callbacks=[earlystopping])
+                                                
+new_model_test_loss, new_model_test_acc = frozen_new_model.evaluate(images_test, labels_test, verbose=0)
+print("Test loss: {}".format(new_model_test_loss))
+print("Test accuracy: {}".format(new_model_test_acc))
+
+# Gather metrics 
+benchmark_train_loss = history_benchmark.history['loss'][-1]
+benchmark_valid_loss = history_benchmark.history['val_loss'][-1]
+
+benchmark_train_acc = history_benchmark.history['binary_accuracy'][-1]
+benchmark_valid_acc = history_benchmark.history['val_binary_accuracy'][-1]
+
+new_model_train_loss = history_frozen_new_model.history['loss'][-1]
+new_model_valid_loss = history_frozen_new_model.history['val_loss'][-1]
+
+new_model_train_acc = history_frozen_new_model.history['binary_accuracy'][-1]
+new_model_valid_acc = history_frozen_new_model.history['val_binary_accuracy']
+
+comparison_table = pd.DataFrame([['Training loss', benchmark_train_loss, new_model_train_loss],
+                                ['Training accuracy', benchmark_train_acc, new_model_train_acc],
+                                ['Validation loss', benchmark_valid_loss, new_model_valid_loss],
+                                ['Validation accuracy', benchmark_valid_acc, new_model_valid_acc],
+                                ['Test loss', benchmark_test_loss, new_model_test_loss],
+                                ['Test accuracy', benchmark_test_acc, new_model_test_acc]],
+                               columns=['Metric', 'Benchmark CNN', 'Transfer learning CNN'])
+comparison_table.index=['']*6
+comparison_table
+
+plt.figure(figsize=(15, 5))
+
+preds = benchmark_model.predict(images_test)
+preds = (preds >= 0.5).astype(np.int32)
+cm = confusion_matrix(labels_test, preds)
+df_cm = pd.DataFrame(cm, index=['Dog', 'Cat'], columns=['Dog', 'Cat'])
+plt.subplot(121)
+plt.title("Confusion matrix for benchmark model\n")
+sns.heatmap(df_cm, annot=True, fmt="d", cmap="YlGnBu")
+plt.ylabel("Predicted")
+plt.xlabel("Actual")
+
+preds = frozen_new_model.predict(images_test)
+preds = (preds >= 0.5).astype(np.int32)
+cm = confusion_matrix(labels_test, preds)
+df_cm = pd.DataFrame(cm, index=['Dog', 'Cat'], columns=['Dog', 'Cat'])
+plt.subplot(122)
+plt.title("Confusion matrix for transfer learning model\n")
+sns.heatmap(df_cm, annot=True, fmt="d", cmap="YlGnBu")
+plt.ylabel("Predicted")
+plt.xlabel("Actual")
+plt.show()
