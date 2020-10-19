@@ -1,6 +1,6 @@
 # Augmentation
 
-Improving image classification through image augmentation is a well known technique <sup>1</sup>. 
+Improving image classification through image augmentation is a well known technique. <sup>1</sup> 
 
 The NN model will reach an apogee if for every epoch the same amount of images are seen. Instead rotation, cropping, or flipping can add more unique instances. Therefore, within each epoch the same amount of images are seen (time constraint) but the number of unique images increases with each epoch.
 
@@ -27,10 +27,4 @@ Using the functional API of Tensorflow we create a function to remove the output
 The final result shown on a table and Confusion Matrix.
 
 ## Sources
-1. @article{Perez2017TheEO,
-  title={The Effectiveness of Data Augmentation in Image Classification using Deep Learning},
-  author={L. Perez and J. Wang},
-  journal={ArXiv},
-  year={2017},
-  volume={abs/1712.04621}
-}
+1. Perez, L., & Wang, J. (2017). The Effectiveness of Data Augmentation in Image Classification using Deep Learning. ArXiv, abs/1712.04621.
