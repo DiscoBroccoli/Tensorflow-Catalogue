@@ -1,1 +1,136 @@
+import tensorflow as tf
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
+# Input data is the fertility dataset https://archive.ics.uci.edu/ml/datasets/Fertility from UC Irvine.
+
+# Load the fertility dataset
+
+headers = ['Season', 'Age', 'Diseases', 'Trauma', 'Surgery', 'Fever', 'Alcohol', 'Smoking', 'Sitting', 'Output']
+fertility = pd.read_csv('data/fertility_diagnosis.txt', delimiter=',', header=None, names=headers)
+
+# Show the head of the DataFrame
+fertility.head()
+
+# Map the 'Output' feature from 'N' to 0 and from 'O' to 1
+fertility['Output'] = fertility['Output'].map(lambda x : 0.0 if x=='N' else 1.0)
+
+# Convert the DataFrame so that the features are mapped to floats
+fertility = fertility.astype('float32')
+
+# Shuffle the DataFrame
+fertility = fertility.sample(frac=1).reset_index(drop=True)
+
+# Convert the field Season to a one-hot encoded vector
+fertility = pd.get_dummies(fertility, prefix='Season', columns=['Season'])
+
+# Move the Output column such that it is the last column in the DataFrame
+fertility.columns = [col for col in fertility.columns if col != 'Output'] + ['Output']
+
+# Split the dataset into training and validation set
+
+training = fertility[0:70]
+validation = fertility[70:100]
+
+training_features = training[:,0:-1]
+training_labels = training[:,-1]
+validation_features = validation[:,0:-1]
+validation_labels = validation[:,-1]
+
+train_generator = get_generator(training_features, training_labels, batch_size=10)
+
+# Create a model using Keras with 3 layers
+
+from tensorflow.keras import Model
+from tensorflow.keras.layers import Dense, Input, BatchNormalization
+
+input_shape = (12,)
+output_shape = (1,)
+
+model_input = Input(input_shape)
+batch_1 = BatchNormalization(momentum=0.8)(model_input)
+dense_1 = Dense(100, activation='relu')(batch_1)
+batch_2 = BatchNormalization(momentum=0.8)(dense_1)
+output = Dense(1, activation='sigmoid')(batch_2)
+
+model = Model([model_input], output)
+
+# Display the model summary to show the resultant structure
+
+model.summary()
+
+# Create the optimizer object
+
+optimizer = tf.keras.optimizers.Adam(learning_rate=1e-2)
+
+# Compile the model with loss function and metric
+
+model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
+
+# Calculate the number of training steps per epoch for the given batch size.
+
+batch_size = 5
+train_steps = len(training) // batch_size
+
+# Set the epochs to 3
+
+epochs = 3
+
+# Train the model
+
+for epoch in range(epochs):
+    train_generator = get_generator(training_features, training_labels, batch_size=batch_size)
+    validation_generator = get_generator(validation_features, validation_labels, batch_size=30)
+    model.fit_generator(train_generator, steps_per_epoch=train_steps, validation_data=validation_generator, validation_steps=1)
+    
+    
+# Create a function that returns an infinitely looping generator
+
+def get_generator_cyclic(features, labels, batch_size=1):
+    while True:
+        for n in range(int(len(features)/batch_size)):
+            yield (features[n*batch_size: (n+1)*batch_size], labels[n*batch_size: (n+1)*batch_size])
+        permuted = np.random.permutation(len(features))
+        features = features[permuted]
+        labels = labels[permuted]
+        
+# Create a generator using this function.
+
+train_generator_cyclic = get_generator_cyclic(training_features, training_labels, batch_size=batch_size)
+
+# Assert that the new cyclic generator does not raise a StopIteration
+
+for i in range(2*train_steps):
+    next(train_generator_cyclic)
+    
+# Generate a cyclic validation generator
+
+validation_generator_cyclic = get_generator_cyclic(validation_features, validation_labels, batch_size=batch_size)
+
+# Train the model
+# notice here with cyclic we can have as many epochs as we want
+# the data is continuously permuted then re-used
+model.fit_generator(train_generator_cyclic, steps_per_epoch=train_steps,
+                    validation_data=validation_generator_cyclic, validation_steps=1, epochs=10)
+                    
+# Let's obtain a validation data generator.
+
+validation_generator = get_generator(validation_features, validation_labels, batch_size=30)
+
+# Get predictions on the validation data
+
+predictions = model.predict_generator(validation_generator, steps=1)
+print(np.round(predictions.T[0]))
+
+# Print the corresponding validation labels
+
+print(validation_labels)
+
+# Obtain a validation data generator
+
+validation_generator = get_generator(validation_features, validation_labels, batch_size=30)
+
+# Evaluate the model
+
+print(model.evaluate(validation_generator))
