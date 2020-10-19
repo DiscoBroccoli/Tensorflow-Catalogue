@@ -38,17 +38,16 @@ For instance, the NN model will reach an accuracy apogee if for every epoch the 
 
 Instead rotation, cropping, or flipping can add more unique instances. Therefore, within each epoch the same amount of images are seen (to keep same training time) but the number of unique images increases with each epoch. Essentially, improving the generalization of the model.
 
-![freeze_NN](https://user-images.githubusercontent.com/57273222/95635094-808ca480-0a59-11eb-8e2b-df3b52459839.PNG)
+For this end, the [LSUN dataset](https://www.yf.io/p/lsun) is used.
 
-As expected, after our training (fit method) the weights are different.
+![augment_data1](https://user-images.githubusercontent.com/57273222/96515137-c81de800-1232-11eb-939e-2121cd053813.PNG)
 
-![freeze2](https://user-images.githubusercontent.com/57273222/95683725-1b50c480-0bbb-11eb-86aa-d6eb7742dfce.PNG)
+The augmented data has [rescaling](https://blog.keras.io/building-powerful-image-classification-models-using-very-little-data.html) (because for typical learning rate it is easier to learn if the target values are between 0 and 1) rotation, brightness altered, and horizontal flip. 
 
-We can refer which layer to freeze using: model.layers[" "].trainable = False
-In the case of the first layer.
+Finally, the result between no-augmentation and augmentation is presented.
 
-![freeze3](https://user-images.githubusercontent.com/57273222/95683817-97e3a300-0bbb-11eb-9df1-40885096ad9b.PNG)
-
+![augment2](https://user-images.githubusercontent.com/57273222/96517259-a161b080-1236-11eb-9f6d-dd8e46563f00.PNG)
+![augment3](https://user-images.githubusercontent.com/57273222/96517280-aa528200-1236-11eb-8210-38093e1fa0a3.PNG)
 
 ## Sources
 1. Perez, L., & Wang, J. (2017). The Effectiveness of Data Augmentation in Image Classification using Deep Learning. ArXiv, abs/1712.04621.
