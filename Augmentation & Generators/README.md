@@ -1,8 +1,8 @@
 # Augmentation
 
-Within an epoch <sup>1</sup>
+Improving image classification through image augmentation is a well known technique <sup>1</sup>. 
 
-A simple deep NN has been created for this exercise. To visualize the weight change we will take the difference between two layers.
+The NN model will reach an apogee if for every epoch the same amount of images are seen. Instead rotation, cropping, or flipping can add more unique instances. Therefore, within each epoch the same amount of images are seen (time constraint) but the number of unique images increases with each epoch.
 
 ![freeze_NN](https://user-images.githubusercontent.com/57273222/95635094-808ca480-0a59-11eb-8e2b-df3b52459839.PNG)
 
