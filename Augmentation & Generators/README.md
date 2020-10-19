@@ -45,8 +45,9 @@ For this end, the [LSUN dataset](https://www.yf.io/p/lsun) is used.
 The augmented data has [rescaling](https://blog.keras.io/building-powerful-image-classification-models-using-very-little-data.html) (because for typical learning rate it is easier to learn if the target values are between 0 and 1) rotation, brightness altered, and horizontal flip. 
 
 Finally, the result between no-augmentation and augmentation is presented.
-
+# No augmentation
 ![augment2](https://user-images.githubusercontent.com/57273222/96517259-a161b080-1236-11eb-9f6d-dd8e46563f00.PNG)
+# With augmentation
 ![augment3](https://user-images.githubusercontent.com/57273222/96517280-aa528200-1236-11eb-8210-38093e1fa0a3.PNG)
 
 ## Sources
