@@ -1,0 +1,200 @@
+import tensorflow as tf
+from tensorflow.keras.datasets import cifar100
+import numpy as np
+import matplotlib.pyplot as plt
+import json
+%matplotlib inline
+
+# If you would like to make further imports from tensorflow, add them here
+
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.layers import Input,Dense,Flatten,Conv2D,MaxPooling2D,Dropout
+from tensorflow.keras.models import  Sequential, Model
+
+# get the pictures from the correct folders
+
+train_dir = 'data/lsun/train'
+valid_dir = 'data/lsun/valid'
+test_dir = 'data/lsun/test'
+
+def get_ImageDataGenerator():
+    image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=(1/255.0))
+    
+    return image_generator
+    
+image_gen = get_ImageDataGenerator()
+
+def get_generator(image_data_generator, directory, seed=None):
+
+    return image_data_generator.flow_from_directory(directory,target_size=(64,64),
+                                                     classes=['classroom','conference_room','church_outdoor'],
+                                                    class_mode="categorical", batch_size=20,seed=seed)
+                                                    
+train_generator = get_generator(image_gen, train_dir)
+valid_generator = get_generator(image_gen, valid_dir)
+
+def get_model(input_shape):
+    inputs = Input(input_shape)
+    h = Conv2D(8, (8,8), activation='relu',padding="same")(inputs)
+    h = MaxPooling2D(pool_size=(2, 2))(h)
+    h = Conv2D(4, (4,4), activation='relu',padding="same")(h)
+    h = MaxPooling2D(pool_size=(2, 2))(h)
+    h = Flatten()(h)
+    h = Dense(16, activation='relu')(h)
+    outputs = Dense(3, activation='softmax')(h)
+    
+    model = Model(inputs=inputs, outputs=outputs)
+    
+    opt = tf.keras.optimizers.Adam(learning_rate=0.0005)
+    model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['categorical_accuracy'])
+
+    return model
+    
+lsun_model = get_model((64, 64, 3))
+lsun_model.summary()
+
+def train_model(model, train_gen, valid_gen, epochs):
+    early_stopping = tf.keras.callbacks.EarlyStopping(patience=10)
+    
+    ReduceLROnPlateau = tf.keras.callbacks.ReduceLROnPlateau(
+    monitor='val_loss', factor=0.5, patience=10, verbose=0, min_delta=0.0001)
+    
+    callbacks = [early_stopping, ReduceLROnPlateau]
+    
+    history = model.fit(train_gen, epochs=epochs,validation_data=(valid_gen), 
+                                        callbacks=callbacks)
+    
+    return history
+    
+history = train_model(lsun_model, train_generator, valid_generator, epochs=50)
+
+plt.figure(figsize=(15,5))
+plt.subplot(121)
+try:
+    plt.plot(history.history['accuracy'])
+    plt.plot(history.history['val_accuracy'])
+except KeyError:
+    try:
+        plt.plot(history.history['acc'])
+        plt.plot(history.history['val_acc'])
+    except KeyError:
+        plt.plot(history.history['categorical_accuracy'])
+        plt.plot(history.history['val_categorical_accuracy'])
+plt.title('Accuracy vs. epochs')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend(['Training', 'Validation'], loc='lower right')
+
+plt.subplot(122)
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('Loss vs. epochs')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(['Training', 'Validation'], loc='upper right')
+plt.show() 
+
+def get_ImageDataGenerator_augmented():
+    image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=(1/255.0),
+                                                                     rotation_range=30,
+                                                                     brightness_range=[0.5, 1.5],
+                                                                     horizontal_flip=True)
+    return image_generator
+image_gen_aug = get_ImageDataGenerator_augmented()
+
+valid_generator_aug = get_generator(image_gen_aug, valid_dir,seed=10)
+train_generator_aug = get_generator(image_gen_aug, train_dir, seed=10)
+valid_generator = get_generator(image_gen, valid_dir, seed=10)
+train_generator = get_generator(image_gen, train_dir, seed=10)
+
+batch = next(train_generator)
+batch_images = np.array(batch[0])
+batch_labels = np.array(batch[1])
+
+aug_batch = next(train_generator_aug)
+aug_batch_images = np.array(aug_batch[0])
+aug_batch_labels = np.array(aug_batch[1])
+
+plt.figure(figsize=(16,5))
+plt.suptitle("Unaugmented images", fontsize=16)
+for n, i in enumerate(np.arange(10)):
+    ax = plt.subplot(2, 5, n+1)
+    plt.imshow(batch_images[i])
+    plt.title(lsun_classes[np.where(batch_labels[i] == 1.)[0][0]])
+    plt.axis('off')
+plt.figure(figsize=(16,5))
+plt.suptitle("Augmented images", fontsize=16)
+for n, i in enumerate(np.arange(10)):
+    ax = plt.subplot(2, 5, n+1)
+    plt.imshow(aug_batch_images[i])
+    plt.title(lsun_classes[np.where(aug_batch_labels[i] == 1.)[0][0]])
+    plt.axis('off')
+    
+lsun_new_model = get_model((64, 64, 3))
+history_augmented = train_model(lsun_new_model, train_generator_aug, valid_generator_aug, epochs=50)
+
+# Run this cell to plot accuracy vs epoch and loss vs epoch
+
+plt.figure(figsize=(15,5))
+plt.subplot(121)
+try:
+    plt.plot(history_augmented.history['accuracy'])
+    plt.plot(history_augmented.history['val_accuracy'])
+except KeyError:
+    try:
+        plt.plot(history_augmented.history['acc'])
+        plt.plot(history_augmented.history['val_acc'])
+    except KeyError:
+        plt.plot(history_augmented.history['categorical_accuracy'])
+        plt.plot(history_augmented.history['val_categorical_accuracy'])
+plt.title('Accuracy vs. epochs')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend(['Training', 'Validation'], loc='lower right')
+
+plt.subplot(122)
+plt.plot(history_augmented.history['loss'])
+plt.plot(history_augmented.history['val_loss'])
+plt.title('Loss vs. epochs')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(['Training', 'Validation'], loc='upper right')
+plt.show() 
+
+# Get model predictions for the first 3 batches of test data
+
+num_batches = 3
+seed = 25
+test_generator = get_generator(image_gen_aug, test_dir, seed=seed)
+predictions = lsun_new_model.predict_generator(test_generator, steps=num_batches)
+
+# Run this cell to view randomly selected images and model predictions
+
+# Get images and ground truth labels
+test_generator = get_generator(image_gen_aug, test_dir, seed=seed)
+batches = []
+for i in range(num_batches):
+    batches.append(next(test_generator))
+    
+batch_images = np.vstack([b[0] for b in batches])
+batch_labels = np.concatenate([b[1].astype(np.int32) for b in batches])
+
+# Randomly select images from the batch
+inx = np.random.choice(predictions.shape[0], 4, replace=False)
+print(inx)
+
+fig, axes = plt.subplots(4, 2, figsize=(16, 12))
+fig.subplots_adjust(hspace=0.4, wspace=-0.2)
+
+for n, i in enumerate(inx):
+    axes[n, 0].imshow(batch_images[i])
+    axes[n, 0].get_xaxis().set_visible(False)
+    axes[n, 0].get_yaxis().set_visible(False)
+    axes[n, 0].text(30., -3.5, lsun_classes[np.where(batch_labels[i] == 1.)[0][0]], 
+                    horizontalalignment='center')
+    axes[n, 1].bar(np.arange(len(predictions[i])), predictions[i])
+    axes[n, 1].set_xticks(np.arange(len(predictions[i])))
+    axes[n, 1].set_xticklabels(lsun_classes)
+    axes[n, 1].set_title(f"Categorical distribution. Model prediction: {lsun_classes[np.argmax(predictions[i])]}")
+    
+plt.show()
