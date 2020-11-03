@@ -4,3 +4,4 @@ Examples are inspired by Customising-your-models-with-TensorFlow-2-Coursera
 
 * Freeze & Transfer Layers
 * Augmentation & Generators
+* Embedding Projector & Padding Sendquence Data
