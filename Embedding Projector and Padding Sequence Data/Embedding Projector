@@ -1,0 +1,105 @@
+%tensorflow_version 2.x
+import tensorflow as tf
+print(tf.__version__)
+
+def get_and_pad_imdb_dataset(num_words=10000, maxlen=None, index_from=2):
+    from tensorflow.keras.datasets import imdb
+
+    # Load the reviews
+    (x_train, y_train), (x_test, y_test) = imdb.load_data(path='imdb.npz',
+                                                          num_words=num_words,
+                                                          skip_top=0,
+                                                          maxlen=maxlen,
+                                                          start_char=1,
+                                                          oov_char=2,
+                                                          index_from=index_from)
+
+    x_train = tf.keras.preprocessing.sequence.pad_sequences(x_train,
+                                                        maxlen=None,
+                                                        padding='pre',
+                                                        truncating='pre',
+                                                        value=0)
+    
+    x_test = tf.keras.preprocessing.sequence.pad_sequences(x_test,
+                                                           maxlen=None,
+                                                           padding='pre',
+                                                           truncating='pre',
+                                                           value=0)
+    return (x_train, y_train), (x_test, y_test)
+    
+(x_train, y_train), (x_test, y_test) = get_and_pad_imdb_dataset()
+
+def get_imdb_word_index(num_words=10000, index_from=2):
+    imdb_word_index = tf.keras.datasets.imdb.get_word_index(
+                                        path='imdb_word_index.json')
+    imdb_word_index = {key: value + index_from for
+                       key, value in imdb_word_index.items() if value <= num_words-index_from}
+    return imdb_word_index
+    
+ 
+imdb_word_index = get_imdb_word_index()
+
+# Swap the keys and values of the word index
+inv_imdb_word_index = {value: key for key, value in imdb_word_index.items()}
+
+max_index_value = max(imdb_word_index.values())
+embedding_dim = 16
+
+review_sequence = tf.keras.Input((None, ))
+embedding_sequence = tf.keras.layers.Embedding(input_dim=max_index_value+1, 
+                                               output_dim=embedding_dim)(review_sequence)                                               
+average_embedding = tf.keras.layers.GlobalAveragePooling1D()(embedding_sequence)
+positive_probability = tf.keras.layers.Dense(units=1, activation='sigmoid')(average_embedding)
+
+model = tf.keras.Model(inputs=review_sequence, outputs=positive_probability)
+
+
+model.compile(loss='binary_crossentropy', metrics=['accuracy'], optimizer='adam')
+
+history = model.fit(x_train, y_train, epochs=5, batch_size=32, validation_data=(x_test, y_test), 
+                    validation_steps=20)
+                    
+
+import matplotlib.pyplot as plt
+%matplotlib inline
+plt.style.use('ggplot')
+
+history_dict = history.history
+
+acc      = history_dict['accuracy']
+val_acc  = history_dict['val_accuracy']
+loss     = history_dict['loss']
+val_loss = history_dict['val_loss']
+
+epochs = range(1, len(acc) + 1)
+
+plt.figure(figsize=(14,5))
+plt.plot(epochs, acc, marker='.', label='Training acc')
+plt.plot(epochs, val_acc, marker='.', label='Validation acc')
+plt.title('Training and validation accuracy')
+plt.xlabel('Epoch')
+plt.ylabel('Classification accuracy')
+plt.legend(loc='lower right')
+plt.ylim(0, 1);
+
+weights = model.layers[1].get_weights()[0]
+
+import io
+from os import path
+
+out_v = io.open('drive/My Drive/Colab Notebooks/vecs.tsv', 'w', encoding='utf-8')
+out_m = io.open('drive/My Drive/Colab Notebooks/meta.tsv', 'w', encoding='utf-8')
+
+k = 0
+
+for word, token in imdb_word_index.items():
+    if k != 0:
+        out_m.write('\n')
+        out_v.write('\n')
+    
+    out_v.write('\t'.join([str(x) for x in weights[token]]))
+    out_m.write(word)
+    k += 1
+    
+out_v.close()
+out_m.close()
