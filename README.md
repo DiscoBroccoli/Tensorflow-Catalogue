@@ -5,3 +5,4 @@ Examples are inspired by Customising-your-models-with-TensorFlow-2-Coursera
 * Freeze & Transfer Layers
 * Augmentation & Generators
 * Embedding Projector & Padding Sequence Data
+* Model Subclassing & Auto-Differentiation
