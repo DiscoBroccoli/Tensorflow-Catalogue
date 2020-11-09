@@ -40,5 +40,30 @@ with tf.GradientTape() as tape:
 
 ![CodeCogsEqn (2)](https://user-images.githubusercontent.com/57273222/98587948-e65a8f00-2298-11eb-9dd0-b92b7a56bc6d.gif)
 
+We can see in action from the following example:
 
+```
+import tensorflow as tf
+from tensorflow.keras.losses import MeanSquaredError
+from tensorflow.keras.optimizers import SGD
+import numpy as np
 
+my_model = MyModel() #custom model already built previously
+loss = MeanSquaredError()
+optimizer = SGD(learning_rate=0.05, momentum=0.9)
+
+epoch_losses = []
+
+for epoch in range(num_epochs):
+  batch_losses = []
+  
+  for input, output in training_dataset:
+    with tf.GradientTape() as tape:
+      current_loss = loss(my_model(inputs), outputs)
+      grads = tape.gradient(current_loss, my_model.trainable_variables)
+      
+    batch_losses.append(current_loss)
+    optimzer.apply_gradients(zip(grads, my_model.trainable_variables))
+    
+  epoch_loss.apend(np.mean(batch_losses))
+```
